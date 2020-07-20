@@ -7,7 +7,15 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
-        pass
+        self.reg = [0] * 8
+        self.ram = [0] * 256
+        self.pc = 0
+        self.ir = 0
+        self.instruction_set = {
+            2: self.ldi,
+            7: self.prn,
+            1: self.hlt, 
+        }
 
     def load(self):
         """Load a program into memory."""
@@ -30,6 +38,22 @@ class CPU:
             self.ram[address] = instruction
             address += 1
 
+    def ram_read(self, mar):
+        return self.ram[mar]
+
+    def ram_write(self, mar, mdr):
+        self.ram[mar] = mdr
+
+    def ldi(self):
+        r = self.ram_read(self.pc + 1)
+        v = self.ram_read(self.pc + 2)
+        self.reg[r] = v
+
+    def prn(self):
+        print(self.reg[self.ram_read(self.pc + 1)])
+
+    def hlt(self):
+        sys.exit()
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
@@ -62,4 +86,13 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        pass
+        while True:
+            self.ir = self.ram_read(self.pc)
+            num_bytes = self.ir >> 6
+            # >> shift places
+            sets_pc = self.ir >> 4 & 0b0001
+            is_alu = self.ir >> 5 & 0b001
+            instruction = self.ir & 0b00001111
+            self.instruction_set[instruction]()
+            if not sets_pc:
+                self.pc += num_bytes + 1
