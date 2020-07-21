@@ -17,26 +17,41 @@ class CPU:
             1: self.hlt, 
         }
 
-    def load(self):
+        self.alu_instruction_set = {
+            2: self.mul,
+        }
+
+    def load(self, file_to_open):
         """Load a program into memory."""
 
         address = 0
 
         # For now, we've just hardcoded a program:
 
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
+        # program = [
+        #     # From print8.ls8
+        #     0b10000010, # LDI R0,8
+        #     0b00000000,
+        #     0b00001000,
+        #     0b01000111, # PRN R0
+        #     0b00000000,
+        #     0b00000001, # HLT
+        # ]
+
+        with open(file_to_open, "r") as f:
+            program = f.readlines()
+
 
         for instruction in program:
-            self.ram[address] = instruction
+            if instruction.startswith("#"):
+                continue
+            self.ram[address] = int(instruction.split(" ")[0], 2)
             address += 1
+        
+    def mul(self):
+        ra = self.ram_read(self.pc + 1)
+        rb = self.ram_read(self.pc + 2)
+        self.alu("MUL", ra, rb)
 
     def ram_read(self, mar):
         return self.ram[mar]
@@ -61,6 +76,8 @@ class CPU:
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
         #elif op == "SUB": etc
+        elif op == "MUL":
+            self.reg[reg_a] *= self.reg[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -93,6 +110,9 @@ class CPU:
             sets_pc = self.ir >> 4 & 0b0001
             is_alu = self.ir >> 5 & 0b001
             instruction = self.ir & 0b00001111
-            self.instruction_set[instruction]()
+            if is_alu:
+                self.alu_instruction_set[instruction]()
+            else:
+                self.instruction_set[instruction]()
             if not sets_pc:
                 self.pc += num_bytes + 1
