@@ -12,14 +12,18 @@ class CPU:
         self.pc = 0
         self.ir = 0
         self.instruction_set = {
-            2: self.ldi,
-            7: self.prn,
-            1: self.hlt, 
+            0b10000010: self.ldi,
+            0b01000111: self.prn,
+            0b1: self.hlt,
+            0b10100010: self.mul,
+            0b01000101: self.push,
+            0b01000110: self.pop,
         }
 
-        self.alu_instruction_set = {
-            2: self.mul,
-        }
+        self.sp = 7  #index of the stack pointer in register array
+        self.reg[self.sp] = -12
+        
+       
 
     def load(self, file_to_open):
         """Load a program into memory."""
@@ -48,10 +52,16 @@ class CPU:
             self.ram[address] = int(instruction.split(" ")[0], 2)
             address += 1
         
-    def mul(self):
-        ra = self.ram_read(self.pc + 1)
-        rb = self.ram_read(self.pc + 2)
-        self.alu("MUL", ra, rb)
+    def mul(self, op1=None, op2=None):
+        self.alu("MUL", op1, op2)
+
+    def push(self, op1=None, op2=None):
+        self.reg[self.sp] -= 1
+        self.ram_write(self.reg[self.sp], self.reg[op1])
+
+    def pop(self, op1=None, op2=None):
+        self.reg[op1] = self.ram_read(self.reg[self.sp])
+        self.reg[self.sp] += 1
 
     def ram_read(self, mar):
         return self.ram[mar]
@@ -59,15 +69,13 @@ class CPU:
     def ram_write(self, mar, mdr):
         self.ram[mar] = mdr
 
-    def ldi(self):
-        r = self.ram_read(self.pc + 1)
-        v = self.ram_read(self.pc + 2)
-        self.reg[r] = v
+    def ldi(self, op1=None, op2=None):
+        self.reg[op1] = op2
 
-    def prn(self):
-        print(self.reg[self.ram_read(self.pc + 1)])
+    def prn(self, op1=None, op2=None):
+        print(self.reg[op1])
 
-    def hlt(self):
+    def hlt(self, op1=None, op2=None):
         sys.exit()
 
     def alu(self, op, reg_a, reg_b):
@@ -109,10 +117,7 @@ class CPU:
             # >> shift places
             sets_pc = self.ir >> 4 & 0b0001
             is_alu = self.ir >> 5 & 0b001
-            instruction = self.ir & 0b00001111
-            if is_alu:
-                self.alu_instruction_set[instruction]()
-            else:
-                self.instruction_set[instruction]()
+            self.instruction_set[self.ir](op1=self.ram_read(
+                self.pc + 1), op2=self.ram_read(self.pc + 2))
             if not sets_pc:
                 self.pc += num_bytes + 1
