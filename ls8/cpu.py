@@ -1,6 +1,7 @@
 """CPU functionality."""
 
 import sys
+import datetime
 
 class CPU:
     """Main CPU class."""
@@ -21,11 +22,19 @@ class CPU:
             0b01010000: self.call,
             0b00010001: self.ret,
             0b10100000: self.add,
+            0b10000100: self.st,
+            0b01010100: self.jmp,
+            0b01001000: self.pra,
+            0b00010011: self.iret,
         }
 
         self.sp = 7  #index of the stack pointer in register array
+        self.istatus = 6
+        self.im = 5
         self.reg[self.sp] = -12
+        self.fl = 0
         
+        self.interrupts_enabled = True
        
 
     def load(self, file_to_open):
@@ -93,6 +102,25 @@ class CPU:
     def hlt(self, op1=None, op2=None):
         sys.exit()
 
+    def st(self, op1=None, op2=None):
+        self.ram_write(self.reg[op1], self.reg[op2])
+
+    def jmp(self, op1=None, op2=None):
+        self.pc = self.reg[op1]
+
+    def pra(self, op1=None, op2=None):
+        print(chr(self.reg[op1]))
+
+    def iret(self, op1=None, op2=None):
+        for r in range(6, -1, -1):
+            self.reg[r] = self.ram_read(self.reg[self.sp])
+            self.reg[self.sp] += 1
+        self.reg[self.fl] = self.ram_read(self.reg[self.sp])
+        self.reg[self.sp] += 1
+        self.pc = self.ram_read(self.reg[self.sp])
+        self.reg[self.sp] += 1
+        self.interrupts_enabled = True
+
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
 
@@ -126,7 +154,31 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
+        now = datetime.datetime.now()
         while True:
+            if datetime.datetime.now() > now + datetime.timedelta(0, 1):
+                self.reg[self.istatus] = self.reg[self.istatus] | 0b1
+                now = datetime.datetime.now()
+            
+            if self.interrupts_enabled:
+                masked_interrupts = self.reg[self.im] & self.reg[self.istatus]
+                for i in range(8):
+                    # Right shift interrupts down by i, then mask with 1 to see if that bit was set
+                    interrupt_happened = ((masked_interrupts >> i) & 1) == 1
+                    if not interrupt_happened:
+                        continue 
+                    self.interrupts_enabled = False
+                    self.reg[self.istatus] = self.reg[self.istatus] & 2^i
+                    self.reg[self.sp] -= 1
+                    self.ram_write(self.reg[self.sp], self.pc)
+                    self.reg[self.sp] -= 1
+                    self.ram_write(self.reg[self.sp], self.fl)
+                    for r in range(7):
+                        self.reg[self.sp] -= 1
+                        self.ram_write(self.reg[self.sp], self.reg[r])
+                    self.pc = self.ram_read(-(8 - i))
+                    break
+
             self.ir = self.ram_read(self.pc)
             num_bytes = self.ir >> 6
             # >> shift places
