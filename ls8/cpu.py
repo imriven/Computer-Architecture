@@ -26,12 +26,15 @@ class CPU:
             0b01010100: self.jmp,
             0b01001000: self.pra,
             0b00010011: self.iret,
+            0b10100111: self.cmp,
+            0b01010101: self.jeq,
+            0b01010110: self.jne,
         }
 
         self.sp = 7  #index of the stack pointer in register array
         self.istatus = 6
         self.im = 5
-        self.reg[self.sp] = -12
+        self.reg[self.sp] = 0xF4
         self.fl = 0
         
         self.interrupts_enabled = True
@@ -102,6 +105,21 @@ class CPU:
     def hlt(self, op1=None, op2=None):
         sys.exit()
 
+    def cmp(self, op1=None, op2=None):
+        self.alu("CMP", op1, op2)
+
+    def jeq(self, op1=None, op2=None):
+        if self.fl == 1:
+            self.pc = self.reg[op1]
+        else:
+            self.pc += 2
+
+    def jne(self, op1=None, op2=None):
+        if self.fl != 1:
+            self.pc = self.reg[op1]
+        else:
+            self.pc += 2
+
     def st(self, op1=None, op2=None):
         self.ram_write(self.reg[op1], self.reg[op2])
 
@@ -129,6 +147,16 @@ class CPU:
         #elif op == "SUB": etc
         elif op == "MUL":
             self.reg[reg_a] *= self.reg[reg_b]
+        elif op == "CMP":
+            if self.reg[reg_a] == self.reg[reg_b]:
+                self.fl |= 0b1
+                self.fl &= 0b11111001
+            elif self.reg[reg_a] < self.reg[reg_b]:
+                self.fl |= 0b100
+                self.fl &= 0b11111100
+            elif self.reg[reg_a] > self.reg[reg_b]:
+                self.fl |= 0b10
+                self.fl &= 11111010
         else:
             raise Exception("Unsupported ALU operation")
 
