@@ -185,7 +185,7 @@ class CPU:
         now = datetime.datetime.now()
         while True:
             if datetime.datetime.now() > now + datetime.timedelta(0, 1):
-                self.reg[self.istatus] = self.reg[self.istatus] | 0b1
+                self.reg[self.istatus] = self.reg[self.istatus] | 0b1 #bitwise or
                 now = datetime.datetime.now()
             
             if self.interrupts_enabled:
@@ -196,7 +196,7 @@ class CPU:
                     if not interrupt_happened:
                         continue 
                     self.interrupts_enabled = False
-                    self.reg[self.istatus] = self.reg[self.istatus] & 2^i
+                    self.reg[self.istatus] = self.reg[self.istatus] & 255 - 2^i
                     self.reg[self.sp] -= 1
                     self.ram_write(self.reg[self.sp], self.pc)
                     self.reg[self.sp] -= 1
@@ -211,7 +211,6 @@ class CPU:
             num_bytes = self.ir >> 6
             # >> shift places
             sets_pc = self.ir >> 4 & 0b0001
-            is_alu = self.ir >> 5 & 0b001
             self.instruction_set[self.ir](op1=self.ram_read(
                 self.pc + 1), op2=self.ram_read(self.pc + 2))
             if not sets_pc:
